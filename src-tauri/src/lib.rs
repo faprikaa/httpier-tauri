@@ -1,6 +1,7 @@
+mod utils;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Listener, Manager, WebviewUrl, WebviewWindowBuilder};
-
+use utils::format_json;
 const INTERCEPTOR_JS: &str = include_str!("../scripts/interceptor.js");
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -63,8 +64,12 @@ async fn open_url_to_new_window(app: AppHandle, mut url: String) -> Result<(), S
     webview_window.listen("http-request", move |event| {
         let payload = event.payload();
         println!();
-        println!("Payload: {:?}", payload);
-        // Parse payload sebagai JSON jika perlu
+        match format_json(payload.to_string().as_str()) {
+            Ok(formatted) => {
+                println!("Formatted Request:\n{}", formatted);
+            }
+            Err(e) => println!("Failed to format JSON: {}", e),
+        } // Parse payload sebagai JSON jika perlu
         match serde_json::from_str::<Value>(payload) {
             Ok(request_data) => {
                 // Contoh: Cetak URL dan metode
@@ -74,8 +79,8 @@ async fn open_url_to_new_window(app: AppHandle, mut url: String) -> Result<(), S
                     }
                 }
 
-                // let main_window = app.get_webview_window("main").unwrap();
-                // main_window.emit("http-request", request_data).unwrap();
+                let main_window = app.get_webview_window("main").unwrap();
+                main_window.emit("http-request-rust", request_data).unwrap();
             }
             Err(e) => println!("Gagal parse payload: {}", e),
         }
@@ -87,7 +92,7 @@ async fn open_url_to_new_window(app: AppHandle, mut url: String) -> Result<(), S
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .setup(|app| {
+        .setup(|_app| {
             // let url = tauri::Url::parse("https://conduit-realworld-example-app.fly.dev/").unwrap();
             // let webview_url = tauri::WebviewUrl::External(url.into());
             // let _webview_window_ =

@@ -1,11 +1,38 @@
-// import { invoke } from '@tauri-apps/api/core';
-
-// Tidak perlu import jika pakai global __TAURI__
-
 window.interceptedRequests = [];
 
 const recentlyLoggedUrls = new Set();
 const MAX_LOGGED_URLS = 20;
+
+// UTILS
+// Fungsi untuk mengonversi string header ke objek JSON
+function parseHeadersToJson(headerString) {
+    console.log("Header string:", headerString);
+    console.log("Typeof Header string:", typeof headerString);
+    if (typeof headerString !== 'string') {
+        console.error("Invalid headerString: Expected string, got:", headerString);
+        return {};
+    }
+    const headersObj = {};
+    const lines = headerString.trim().split(/\r?\n/);
+    
+    // Proses setiap baris
+    for (const line of lines) {
+        // Pastikan baris tidak kosong
+        if (line.trim() === "") continue;
+        
+        // Pisahkan key dan value berdasarkan colon pertama
+        const firstColonIndex = line.indexOf(":");
+        if (firstColonIndex === -1) continue; // Lewati jika tidak ada colon
+        
+        const key = line.substring(0, firstColonIndex).trim().toLowerCase(); // Normalisasi ke lowercase
+        const value = line.substring(firstColonIndex + 1).trim();
+        
+        // Tambahkan ke objek
+        headersObj[key] = value;
+    }
+    
+    return headersObj;
+}
 
 function shouldLogUrl(url) {
     console.log("window.__TAURI__", window.__TAURI__);
@@ -22,7 +49,9 @@ function shouldLogUrl(url) {
     }
     return true;
 }
+// ================ done utils =================
 
+// MAIN
 const originalFetch = window.fetch;
 window.fetch = async (...args) => {
 
@@ -36,8 +65,8 @@ window.fetch = async (...args) => {
                 url: resource,
                 method: options?.method || "GET",
                 headers: options?.headers || {},
-                body: options?.body || null,
-                response: body
+                body: JSON.parse(options?.body || null),
+                response: JSON.parse(body)
             };
             if (shouldLogUrl(resource.toString())) {
                 console.log("📥 Fetch Intercepted:", resource);
@@ -59,9 +88,9 @@ XMLHttpRequest.prototype.send = function (body) {
             type: "xhr",
             url: this.responseURL,
             method: this._method || this.method || "POST",
-            headers: this.getAllResponseHeaders(),
-            body: body,
-            response: this.responseText
+            headers: parseHeadersToJson(this.getAllResponseHeaders()),
+            body: JSON.parse(body),
+            response: JSON.parse(this.responseText)
         };
         if (shouldLogUrl(this.responseURL)) {
             console.log("📥 XHR Intercepted:", this.responseURL);

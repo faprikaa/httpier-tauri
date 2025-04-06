@@ -7,18 +7,73 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Node.js dependencies
+node_modules/
+dist/
+dist-ssr/
 *.local
+
+# Rust artifacts
+**/target/
+**/*.rs.bk
+src-tauri/gen/
+Cargo.lock
+
+# Distribution files
+/out/
+/build/
+*.tsbuildinfo
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+.fleet/
+.env
+.env.*
+!.env.example
+
+# Tauri
+.tauri/
+**/.tauri/*
+
+# TypeScript
+*.tsbuildinfo
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# NYC test coverage
+.nyc_output/
+
+# Temporary files
+.tmp/
+.temp/
+
+# Cache folders
+.cache/
+.parcel-cache/
+
+# Production build files
+/dist/
+/build/
+
+# Testing
+/coverage/
+/.jest/
+/playwright-report/
+/test-results/

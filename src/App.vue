@@ -78,7 +78,7 @@ function clearRequests() {
 }
 
 onMounted(() => {
-  listen("http-request", (event) => {
+  listen("http-request-rust", (event) => {
     console.log("Received HTTP request:", event);
   });
 });

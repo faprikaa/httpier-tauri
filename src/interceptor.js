@@ -3,6 +3,58 @@ import { invoke } from '@tauri-apps/api/core';
 // Initialize the interceptedRequests array
 window.interceptedRequests = [];
 
+/**
+ * Converts an XML document to a JSON object
+ * @param {Document} xml - The XML document to convert
+ * @returns {Object} - The resulting JSON object
+ */
+function xmlToJson(xml) {
+  // Create the return object
+  let obj = {};
+
+  if (xml.nodeType === 1) { // element
+    // Process attributes
+    if (xml.attributes.length > 0) {
+      obj["@attributes"] = {};
+      for (let j = 0; j < xml.attributes.length; j++) {
+        const attribute = xml.attributes.item(j);
+        obj["@attributes"][attribute.nodeName] = attribute.nodeValue;
+      }
+    }
+  } else if (xml.nodeType === 3) { // text
+    obj = xml.nodeValue.trim();
+    return obj === "" ? null : obj;
+  }
+
+  // Process children
+  if (xml.hasChildNodes()) {
+    for (let i = 0; i < xml.childNodes.length; i++) {
+      const item = xml.childNodes.item(i);
+      const nodeName = item.nodeName;
+      
+      // Skip #text nodes with only whitespace
+      if (nodeName === "#text" && item.nodeValue.trim() === "") continue;
+      
+      // Convert #text to actual text value
+      const normalizedNodeName = nodeName === "#text" ? "text" : nodeName;
+      
+      const itemJson = xmlToJson(item);
+      if (itemJson !== null) {
+        if (obj[normalizedNodeName] === undefined) {
+          obj[normalizedNodeName] = itemJson;
+        } else {
+          if (!Array.isArray(obj[normalizedNodeName])) {
+            obj[normalizedNodeName] = [obj[normalizedNodeName]];
+          }
+          obj[normalizedNodeName].push(itemJson);
+        }
+      }
+    }
+  }
+  
+  return obj;
+}
+
 // Track last logged URLs to prevent spam
 const recentlyLoggedUrls = new Set();
 const MAX_LOGGED_URLS = 20;
@@ -50,9 +102,9 @@ window.fetch = async (...args) => {
                     type: "fetch",
                     url: resource,
                     method: options?.method || "GET",
-                    headers: options?.headers || {},
-                    body: options?.body || null,
-                    response: body
+                    headers: JSON.parse(options?.headers || null),
+                    body: JSON.parse(options?.body || null),
+                    response: JSON.parse(body)
                 };
 
                 // invoke("save_request", { request: requestData })
@@ -82,13 +134,34 @@ XMLHttpRequest.prototype.send = function (body) {
     try {
         this.addEventListener("load", function () {
             try {
+                // Parse response based on content type
+                let parsedResponse;
+                const contentType = this.getResponseHeader('content-type');
+                
+                try {
+                    if (contentType && contentType.includes('application/xml') || contentType && contentType.includes('text/xml')) {
+                        // Convert XML to JSON
+                        const parser = new DOMParser();
+                        const xmlDoc = parser.parseFromString(this.responseText, 'text/xml');
+                        parsedResponse = xmlToJson(xmlDoc);
+                    } else {
+                        // Try to parse as JSON
+                        parsedResponse = JSON.parse(this.responseText);
+                        console.log("NOT XML")
+                    }
+                } catch (e) {
+                    // If parsing fails, use the raw response text
+                    parsedResponse = JSON.parse(this.responseText);
+                    console.log("ERROR PARSING")
+                }
+                
                 const requestData = {
                     type: "xhr",
                     url: this.responseURL,
                     method: this._method || this.method || "POST",
                     headers: this.getAllResponseHeaders(),
                     body: body,
-                    response: this.responseText
+                    response: parsedResponse
                 };
 
                 window.interceptedRequests.push(requestData);
